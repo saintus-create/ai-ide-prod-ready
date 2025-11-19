@@ -1,0 +1,87 @@
+{
+  " budgets ": [
+    {
+      " type ": " initial ",
+      " maximumWarning ": " 500kb ",
+      " maximumError ": " 1mb "
+    },
+    {
+      " type ": " anyComponentStyle ",
+      " maximumWarning ": " 2kb ",
+      " maximumError ": " 4kb "
+    },
+    {
+      " type ": " anyComponentStyle ",
+      " path ": " src/components/Editor.tsx ",
+      " maximumWarning ": " 5kb ",
+      " maximumError ": " 10kb "
+    },
+    {
+      " type ": " anyComponentStyle ",
+      " path ": " src/components/SettingsModal.tsx ",
+      " maximumWarning ": " 8kb ",
+      " maximumError ": " 15kb "
+    }
+  ],
+  " viewports ": [
+    {
+      " name ": " desktop ",
+      " width ": 1920,
+      " height ": 1080
+    },
+    {
+      " name ": " tablet ",
+      " width ": 768,
+      " height ": 1024
+    },
+    {
+      " name ": " mobile ",
+      " width ": 375,
+      " height ": 812
+    }
+  ],
+  " budgetsConfig ": {
+    " js ": {
+      " initial ": " 250kb ",
+      " total ": " 500kb "
+    },
+    " css ": {
+      " initial ": " 50kb ",
+      " total ": " 100kb "
+    },
+    " images ": {
+      " initial ": " 100kb ",
+      " total ": " 200kb "
+    },
+    " fonts ": {
+      " initial ": " 50kb ",
+      " total ": " 100kb "
+    }
+  },
+  " performanceMetrics ": {
+    " LCP ": {
+      " target ": " 2.5s ",
+      " budget ": " 3.0s "
+    },
+    " FID ": {
+      " target ": " 100ms ",
+      " budget ": " 200ms "
+    },
+    " CLS ": {
+      " target ": " 0.1 ",
+      " budget ": " 0.25 "
+    },
+    " TTFB ": {
+      " target ": " 600ms ",
+      " budget ": " 1000ms "
+    },
+    " FCP ": {
+      " target ": " 1.8s ",
+      " budget ": " 2.5s "
+    },
+    " TTI ": {
+      " target ": " 3.8s ",
+      " budget ": " 5.0s "
+    }
+  }
+}

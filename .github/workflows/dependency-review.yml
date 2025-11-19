@@ -1,0 +1,81 @@
+name: Dependency Review
+
+on:
+  pull_request:
+    paths:
+      - 'backend/package.json'
+      - 'frontend/package.json'
+      - 'backend/package-lock.json'
+      - 'frontend/package-lock.json'
+  schedule:
+    - cron: '0 0 * * 0' # Weekly on Sundays
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  dependency-review:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        
+    - name: Install dependency-review
+      run: npm install -g @ncc/dependency-review-action
+      shell: bash
+      
+    - name: Run Dependency Review
+      uses: ncc/dependency-review-action@v4
+      with:
+        fail-on-severity: moderate
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+        
+    - name: Install dependencies
+      run: |
+        cd backend && npm install --audit=false
+        cd ../frontend && npm install --audit=false
+        
+    - name: Run npm audit
+      run: |
+        cd backend
+        npm audit --audit-level=moderate
+        
+    - name: Run npm outdated
+      run: |
+        cd backend && npm outdated --depth=0
+        cd ../frontend && npm outdated --depth=0
+        
+  license-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install license checker
+      run: npm install -g license-checker
+      
+    - name: Check licenses
+      run: |
+        cd backend && license-checker --summary
+        cd ../frontend && license-checker --summary
