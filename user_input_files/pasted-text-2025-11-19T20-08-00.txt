@@ -1,0 +1,288 @@
+## 📦  AI‑IDE “Production‑Ready” Functional Spec  
+*(Think of it as a lean‑down version of VS Code / Zed that **never** ships with a missing button, a broken connection, or an undocumented shortcut.)*  
+
+Below is a **complete, hierarchical checklist** of everything the project must contain—**front‑end**, **back‑end**, **infrastructure**, **testing**, **documentation**, and **operations**.  
+Treat each bullet as a *gate* that has to pass before you cut a release. If any gate fails, the CI pipeline blocks the merge, so the IDE works **the first time** it lands in production.
+
+---
+
+## 1️⃣ Core User‑Facing Features (What the user sees)
+
+| # | Feature | UI Element(s) | Behaviour | Must‑Have? |
+|---|---------|---------------|-----------|-----------|
+| 1 | **File Explorer** | Sidebar tree, **New File**, **New Folder**, **Rename**, **Delete**, **Refresh** icons | - Lazy‑load directories. <br>- Inline rename with validation (no duplicate names, no illegal characters). <br>- Context‑menu (right‑click) with the same actions. | ✅ |
+| 2 | **Multi‑Tab Editor** | Top tab bar, close ×, drag‑to‑reorder, **pin** icon | - Each tab shows the filename and unsaved *dot* indicator. <br>- Switching tabs instantly loads the file content from the workspace service. <br>- Pin prevents accidental close. | ✅ |
+| 3 | **CodeMirror 6 Editor** | Syntax‑highlight, line numbers, folding, auto‑indent, **FIM** autocomplete | - Language‑specific extensions (JS/TS, Python, Go, etc.). <br>- AI‑completion triggered on `Ctrl+Space` **or** as you type (configurable). <br>- Show loading spinner while AI request is in flight. | ✅ |
+| 4 | **AI Assistant Panel** | Bottom drawer, chat window, **model selector** dropdown, **send** button, **clear** button | - Streams responses from the backend (`/ai/complete`). <br>- Persists conversation in `localStorage` (or workspace DB) per project. <br>- Model selector updates the request header (`X‑Model`). | ✅ |
+| 5 | **Git Integration** | Toolbar with **Init**, **Status**, **Pull**, **Push**, **Commit**, **Branch** dropdown, **Diff** view | - All actions call the `/git/*` API. <br>- Show toast notifications on success/failure. <br>- Diff view uses a side‑by‑side read‑only CodeMirror with inline markers. | ✅ |
+| 6 | **Terminal Emulator (optional for MVP)** | Collapsible bottom pane, **run** button, **clear** button | - Connects to a backend PTY via WebSocket (`/ws/terminal`). <br>- Sends keystrokes, receives output, supports Ctrl +C. | ⚪️ (nice‑to‑have) |
+| 7 | **Theme System** | Header toggle (Sun/Moon), **light/dark/pure‑black** modes | - Persists choice in `localStorage`. <br>- Tailwind config uses CSS variables for easy theming. | ✅ |
+| 8 | **Toast Notification System** | Top‑right stack, auto‑dismiss after 4 s, **error** (red), **info** (blue), **success** (green) | - API: `useToast().add({message, type})`. <br>- Accessible (ARIA role = alert). | ✅ |
+| 9 | **Keyboard Hot‑keys** | Global listener (via `useHotkeys`) | - `Ctrl+S` → Save current file. <br>- `Ctrl+N` → New file. <br>- `Ctrl+O` → Open explorer. <br>- `Ctrl+Shift+S` → Save All. <br>- `Ctrl+/, Ctrl+D` → Toggle comment. <br>- `Ctrl+F` → Find. <br>- `Ctrl+H` → Replace. <br>- `Ctrl+` (back‑tick) → Toggle terminal. | ✅ |
+|10| **Settings Modal** | Gear icon → modal with tabs (**General**, **AI**, **Git**, **Keyboard**, **Theme**) | - Persist all values in `localStorage` (or a tiny JSON file in the workspace). <br>- Validate on save (e.g., API keys are non‑empty). | ✅ |
+|11| **Error‑Boundary UI** | Full‑screen fallback UI (red banner) | - Catches any uncaught React error, shows a “Something went wrong” screen with a **Report** button that sends logs to a GitHub issue via the backend. | ✅ |
+|12| **Responsive Layout** | Works on 1024 px + , collapses sidebar on < 768 px (hamburger menu) | - All controls remain reachable via keyboard shortcuts. | ✅ |
+
+> **Tip:** Build each UI element as a **Storybook** story first. That guarantees the component exists, is testable, and can’t be forgotten later.
+
+---
+
+## 2️⃣ Backend API Surface (What the server must expose)
+
+| Endpoint | Method | Payload | Success Response | Failure Cases (status code) | Must‑Have |
+|----------|--------|---------|-------------------|-----------------------------|-----------|
+| `/health` | GET | – | `{status:"ok"}` | 500 (if any internal dependency fails) | ✅ |
+| `/workspace/files` | GET | `{path?: string}` | `{files:[{name, type, size, modified}]}` | 404 (invalid path) | ✅ |
+| `/workspace/file` | GET | `{path}` | `{content:string}` | 404 (not found) | ✅ |
+| `/workspace/file` | POST | `{path, content}` | `{message:"saved"}` | 400 (validation), 500 (IO) | ✅ |
+| `/workspace/file` | DELETE | `{path}` | `{message:"deleted"}` | 404, 500 | ✅ |
+| `/git/init` | POST | `{repoRoot}` | `{message:"initialized"}` | 400, 500 | ✅ |
+| `/git/status` | GET | `{repoRoot}` | `{status:"clean|dirty", changes:[...]}` | 400, 500 | ✅ |
+| `/git/commit` | POST | `{message, files?}` | `{hash}` | 400, 500 | ✅ |
+| `/git/pull` | POST | `{remote, branch}` | `{merged:true}` | 409 (conflict), 500 | ✅ |
+| `/git/push` | POST | `{remote, branch}` | `{pushed:true}` | 409, 500 | ✅ |
+| `/ai/complete` | POST | `{model, prompt, maxTokens?, temperature?}` | *streamed* JSON `{token}` events | 400 (bad model), 401 (missing API key), 500 | ✅ |
+| `/ai/models` | GET | – | `{models:[{id, name, provider}]}` | 500 | ✅ |
+| `/logs` | POST | `{level, message, meta}` | `{ok:true}` | 400, 500 | ⚪️ (optional for error‑reporting) |
+| `/report` | POST | `{error, logs}` | `{ticketUrl}` | 400, 500 | ⚪️ (nice‑to‑have) |
+
+All endpoints must:
+
+* Return **JSON** with `Content‑Type: application/json`.
+* Validate **input** (use `zod` or `joi` schema).  
+* Log **request‑id** (UUID) and correlate logs across services.  
+* Have **CORS** configured to accept the Vercel domain *only* (or any `*.vercel.app` in dev).  
+
+---
+
+## 3️⃣ Infrastructure & Deployment (How it runs)
+
+| Layer | Requirement | Implementation |
+|-------|-------------|----------------|
+| **Containerisation** | Reproducible builds, isolated env. | `Dockerfile` for backend + frontend. Use multi‑stage builds to keep final images < 300 MB. |
+| **Compose / Orchestration** | One‑click local dev & CI. | `docker‑compose.yml` with health‑checks & `restart: unless-stopped`. |
+| **Environment‑Variable Management** | No secrets in code. | `.env.example` + `.env.vercel.example`. CI injects `CODESTRAL_API_KEY`, `HF_TOKEN`, `VITE_API_URL`, `VITE_WS_URL`. |
+| **CI/CD** | Fail‑fast, lint, type‑check, build, test, deploy. | GitHub Actions workflow (see Section 5). |
+| **Production Host** | Frontend on Vercel (static + serverless), backend on Railway/Render/Heroku (or Vercel Functions). | `vercel.json` with `buildCommand: bash vercel‑build.sh`. Backend exposed as `https://api.<your‑domain>.com`. |
+| **Static Assets CDN** | Fast asset delivery. | Vercel’s built‑in CDN (no extra config). |
+| **Observability** | Immediate insight into crashes. | - Structured logs (JSON) → Vercel/Render logs. <br>- Health‑check endpoint. <br>- Optional Sentry integration (send errors from front‑end). |
+| **Rollback** | One‑click revert. | Tag releases (`git tag -a v1.0.0 …`) and enable Vercel “Deployments → Rollback”. |
+| **Secrets Rotation** | No stale keys. | Use Railway/Render secret manager; Vercel environment variables can be rotated via UI. |
+| **Scalability** | Ability to add more users. | Backend runs as a stateless Express service; horizontal scaling is trivial (Docker Swarm/K8s). Workspace files are stored in a mounted volume (`/workspace`) – for production you can replace it with an NFS or S3‑backed FS. |
+
+---
+
+## 4️⃣ Quality Assurance (Never ship a missing button)
+
+| Gate | Tool | What it validates |
+|------|------|-------------------|
+| **Unit Tests** | Jest (backend) + Vitest (frontend) | Pure functions, API service wrappers, reducers, hook logic. |
+| **Component Tests** | React Testing Library + Storybook “a11y” addon | Each UI component renders, responds to props, has correct ARIA attributes. |
+| **End‑to‑End Tests** | Playwright (or Cypress) | - Open IDE, create a file, type code, hit `Ctrl+Space` → AI suggestion appears.<br>- Commit a change → toast “Commit successful”.<br>- Switch theme → UI colors change.<br>- Disconnect network → UI shows “Offline” banner, retries automatically. |
+| **Lint & Formatting** | ESLint + Prettier (enforced via husky pre‑commit) | No lint errors, consistent code style. |
+| **Type Safety** | TypeScript `strict` mode + `noImplicitAny` | Guarantees compile‑time contract enforcement. |
+| **Accessibility** | axe-core (storybook) + manual keyboard navigation test | All interactive elements reachable via Tab, have visible focus rings, proper `aria-label`s. |
+| **Performance Budget** | Lighthouse CI (as part of GitHub Actions) | First‑paint < 800 ms, bundle size < 1 MB gzipped. |
+| **Security Scan** | npm audit + Snyk (CI step) | No known vulnerabilities in dependencies. |
+| **Snapshot/Visual Regression** | Storybook Chromatic (optional) | Detects accidental UI regressions (e.g., a missing button). |
+| **Release Checklist** | `DEPLOYMENT_CHECKLIST.md` (human‑readable) + CI gate that fails if any unchecked item remains. | Guarantees the “first‑time‑right” promise. |
+
+**Result:** If any test or lint step fails, the PR cannot be merged; the CI blocks it automatically.
+
+---
+
+## 5️⃣ Detailed CI Workflow (GitHub Actions)
+
+```yaml
+name: CI / Deploy
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      # ----- Checkout & Node -------------------------------------------------
+      - uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      # ----- Install root + workspaces ---------------------------------------
+      - name: Install monorepo deps
+        run: npm ci
+
+      # ----- Lint & Type‑check ------------------------------------------------
+      - name: Lint & type‑check
+        run: |
+          npm run lint
+          npm run typecheck
+
+      # ----- Unit / Component tests -------------------------------------------
+      - name: Run Jest/Vitest
+        run: npm test --workspaces --if-present
+
+      # ----- Build frontend (Vercel style) ------------------------------------
+      - name: Build frontend
+        working-directory: ./frontend
+        run: |
+          npm ci
+          npm run build
+
+      # ----- Docker health‑check (optional if backend in Docker) -------------
+      - name: Docker compose up (health‑check)
+        run: |
+          docker compose up -d --build
+          timeout 60 bash -c '
+            until [ "$(docker inspect -f "{{.State.Health.Status}}" ai-ide-backend-1)" = "healthy" ]; do sleep 2; done
+            until [ "$(docker inspect -f "{{.State.Health.Status}}" ai-ide-frontend-1)" = "healthy" ]; do sleep 2; done
+          '
+
+      # ----- Smoke test (fast) -------------------------------------------------
+      - name: Smoke test
+        run: |
+          curl -f http://localhost:4000/health
+          curl -f http://localhost:5173/
+
+      # ----- End‑to‑End Playwright tests ---------------------------------------
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+      - name: Run Playwright E2E
+        run: npx playwright test
+
+      # ----- Lint storybook (visual regression) -------------------------------
+      - name: Storybook test (optional)
+        run: npx storybook:test
+
+      # ----- Security audit ----------------------------------------------------
+      - name: npm audit
+        run: npm audit --audit-level=high
+
+      # ----- Deploy to Vercel (only on main) ---------------------------------
+      - name: Deploy Frontend to Vercel
+        if: github.ref == 'refs/heads/main'
+        uses: amondnet/vercel-action@v20
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: ./frontend
+          prod: true
+```
+
+*All steps are **required**; if any fails, the workflow aborts and the merge is blocked.*
+
+---
+
+## 6️⃣ Documentation & Knowledge Transfer
+
+| Document | Owner | Contents |
+|----------|-------|----------|
+| `README.md` | Maintainer | Quick‑start, architecture diagram, how to run locally, how to add a new AI model. |
+| `DEPLOYMENT_CHECKLIST.md` | DevOps | Exact list of items to verify before a push (see Section 3). |
+| `VERCEL_DEPLOYMENT.md` | DevOps | Vercel‑specific env‑vars, `vercel.json` explanation, troubleshooting build logs. |
+| `API_SPEC.md` | Backend lead | Full OpenAPI‑style spec (paths, schemas, error codes). |
+| `CONTRIBUTING.md` | Team lead | Code style, pre‑commit hook description, testing workflow, how to open a PR. |
+| `DESIGN_SYSTEM.md` | UI/UX | Component library (Tailwind + custom components), color palette (including pure‑black theme), icon set, accessibility guidelines. |
+| `EXTENSION_GUIDE.md` | Future‑proofing | How to add a new panel (e.g., a terminal) or a VS Code‑like extension point. |
+| `CHANGELOG.md` | Release manager | Semantic‑versioned changelog (auto‑generated with `standard-version`). |
+
+All docs live in the repo and are **rendered automatically** by GitHub (Markdown) and by Storybook (component docs).
+
+---
+
+## 7️⃣ Roadmap – MVP → V1 → V2
+
+| Milestone | Scope | Acceptance Criteria |
+|-----------|-------|---------------------|
+| **MVP (core IDE)** | File explorer, multi‑tab editor, AI autocomplete, theme toggle, toast system, hot‑keys, basic git (`init`, `status`, `commit`). | All UI components render; `npm run test` passes; CI green; Vercel deploys; manual QA: create a file, type code, get AI suggestion, commit → toast “Commit successful”. |
+| **V1 (product‑ready)** | Add AI chat panel, diff view, settings modal, full git workflow (`pull`, `push`, `branch`), error‑boundary UI, responsive layout, Playwright E2E suite. | Same CI pass, plus 100 % coverage of UI interactions in Playwright. |
+| **V2 (deluxe)** | Terminal emulator, extension API (plug‑in loader), workspace persistence to cloud storage (S3), multi‑user auth (OAuth), dark‑mode sync with OS, telemetry (optional). | New features pass their own unit/E2E tests; no regression in existing tests; CI still green. |
+
+Each milestone **must** be gated by the checklist and CI pipeline—nothing is merged without it.
+
+---
+
+## 8️⃣ How to Prevent “Forgot a Button” or “Broken Connection” Bugs
+
+| Problem | Preventive Pattern |
+|---------|--------------------|
+| UI element missing from a screen (e.g., “Save” button) | **Storybook** + **visual regression** (Chromatic) → every component is a story; CI fails if a story disappears. |
+| API endpoint not wired to UI | **Contract testing**: generate a **type‑safe client** from the OpenAPI spec (`openapi-generator`) and import it in the front‑end. If the endpoint changes, TypeScript compilation fails. |
+| Wrong env var → backend can’t reach AI provider | **Env‑validation** (see Section 2). The server exits with a clear error before the container becomes healthy; CI health‑check catches it. |
+| Hot‑key clash / not registered | Central **hot‑key registry** (`useHotkeys` hook) that throws if a duplicate shortcut is registered. Unit test that registers all shortcuts and asserts uniqueness. |
+| Git operation silently fails | All git service calls return a JSON `{ok:true}` **or** an error with `code` and `message`. UI shows a toast for every non‑200 response. |
+| Layout breaks on small screens | **Responsive Storybook stories** (Viewport addon) + automated screenshot diff in CI. |
+| Deployment works locally but not on Vercel | **Docker health‑check** + **CI smoke test** run **exactly** the same commands Vercel runs (`vercel-build.sh`). If CI passes, Vercel will also pass. |
+| Missing translation / ARIA label | **eslint-plugin-jsx-a11y** + **eslint-plugin-react-i18next** (if i18n). CI fails on missing `aria-label` or untranslated strings. |
+
+---
+
+## 9️⃣ One‑Click “All‑Clear” Script (Run before you push)
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "=== 1️⃣ Lint & type‑check ==="
+npm run lint && npm run typecheck
+
+echo "=== 2️⃣ Unit / component tests ==="
+npm test --workspaces
+
+echo "=== 3️⃣ Build frontend (Vercel) ==="
+(cd frontend && npm ci && npm run build)
+
+echo "=== 4️⃣ Docker health‑check (if using Docker) ==="
+docker compose up -d --build
+timeout 60 bash -c '
+  until [ "$(docker inspect -f "{{.State.Health.Status}}" ai-ide-backend-1)" = "healthy" ]; do sleep 2; done
+  until [ "$(docker inspect -f "{{.State.Health.Status}}" ai-ide-frontend-1)" = "healthy" ]; do sleep 2; done
+'
+
+echo "=== 5️⃣ Smoke test ==="
+curl -f http://localhost:4000/health
+curl -f http://localhost:5173/
+
+echo "=== 6️⃣ End‑to‑end Playwright tests ==="
+npx playwright test
+
+echo "=== 7️⃣ Tear down ==="
+docker compose down
+
+echo "✅ All checks passed – you can push now!"
+```
+
+Add it to `package.json`:
+
+```json
+"scripts": {
+  "prepush": "bash ./scripts/prepush-checks.sh"
+}
+```
+
+Now `git push` automatically runs the script (via the Git hook you created) and aborts on the first failure.
+
+---
+
+## 📌 TL;DR – What to **actually implement** right now
+
+1. **Add every UI component to Storybook** (Explorer, Tabs, Editor, Chat, GitPanel, Settings, Toast, ThemeToggle).  
+2. **Write OpenAPI spec** (`api-spec.yaml`) and generate a **typed client** (`npm run generate:client`).  
+3. **Implement env‑validation** (`src/config.ts` + Vite validator).  
+4. **Add Docker health‑checks & restart policies**.  
+5. **Create pre‑commit & pre‑push hooks** (lint, type‑check, Docker health‑check).  
+6. **Set up full CI pipeline** (lint → type → unit → build → smoke → e2e → security).  
+7. **Write the deployment checklist** and keep it in `DEPLOYMENT_CHECKLIST.md`.  
+8. **Run the “all‑clear” script** before each push.  
+9. **Deploy to Vercel** (frontend) + Railway/Render (backend) and verify the CI passes.  
+
+Once those nine steps are in place, **every merge will be a green‑light release**, and the IDE will work correctly **the first time** it lands in production—no missing buttons, no broken connections, no hidden surprises.  
+
+Feel free to ask for any of the concrete files (e.g., a sample `api‑spec.yaml`, a Storybook config, or the exact `vercel‑build.sh` script) and I’ll drop them into the repo for you. 🚀
