@@ -1,0 +1,1045 @@
+openapi: 3.0.3
+info:
+  title: AI-IDE API
+  description: |
+    Comprehensive API for the AI-powered development environment.
+    
+    This API provides endpoints for:
+    - Health monitoring and system status
+    - File system operations (workspace management)
+    - AI-powered code completion and chat
+    - Git version control integration
+    - WebSocket real-time communication
+    
+    ## Authentication
+    
+    The API uses API keys for authentication. Include your API key in the request headers:
+    
+    ```
+    Authorization: Bearer your-api-key
+    ```
+    
+    ## Rate Limiting
+    
+    API endpoints are rate limited to ensure fair usage:
+    - Health endpoints: 60 requests per minute
+    - File operations: 100 requests per minute
+    - AI endpoints: 20 requests per minute
+    - Git endpoints: 30 requests per minute
+    
+    ## Error Handling
+    
+    All endpoints return standardized error responses:
+    
+    ```json
+    {
+      "error": "Error message",
+      "code": "ERROR_CODE",
+      "details": "Additional error details"
+    }
+    ```
+  version: 1.0.0
+  contact:
+    name: AI-IDE Team
+    email: team@ai-ide.dev
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.ai-ide.dev/v1
+    description: Production server
+  - url: https://staging-api.ai-ide.dev/v1
+    description: Staging server
+  - url: http://localhost:3001/api
+    description: Development server
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check endpoint
+      description: Returns system health status, uptime, memory usage, and service availability
+      operationId: getHealth
+      responses:
+        '200':
+          description: System is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: healthy
+                timestamp: 2025-11-20T06:31:48.000Z
+                uptime: 123.456
+                memory:
+                  used: 15728640
+                  total: 33554432
+                  percentage: 46.9
+                  rss: 20971520
+                  heapUsed: 8388608
+                  heapTotal: 16777216
+                database:
+                  status: healthy
+                  type: file-system
+                aiProvider:
+                  available: true
+                  codestral: true
+                  huggingface: true
+        '500':
+          description: System is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /workspace/files:
+    get:
+      tags:
+        - Workspace
+      summary: List directory contents
+      description: Returns a list of files and directories in the specified path
+      operationId: listFiles
+      parameters:
+        - name: path
+          in: query
+          required: true
+          description: Directory path to list contents
+          schema:
+            type: string
+          example: /workspace/project
+      responses:
+        '200':
+          description: Directory contents retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileListResponse'
+        '400':
+          description: Invalid path or directory traversal attempt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Directory not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - ApiKeyAuth: []
+
+  /workspace/file:
+    get:
+      tags:
+        - Workspace
+      summary: Read file content
+      description: Returns the content of a specified file
+      operationId: readFile
+      parameters:
+        - name: path
+          in: query
+          required: true
+          description: File path to read
+          schema:
+            type: string
+          example: /workspace/project/src/index.js
+      responses:
+        '200':
+          description: File content retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileContentResponse'
+        '404':
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - ApiKeyAuth: []
+
+    post:
+      tags:
+        - Workspace
+      summary: Create or update file
+      description: Creates a new file or updates existing file content
+      operationId: saveFile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveFileRequest'
+      responses:
+        '200':
+          description: File updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaveFileResponse'
+        '201':
+          description: File created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SaveFileResponse'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - ApiKeyAuth: []
+
+    delete:
+      tags:
+        - Workspace
+      summary: Delete file or directory
+      description: Deletes a specified file or directory
+      operationId: deleteFile
+      parameters:
+        - name: path
+          in: query
+          required: true
+          description: Path to file or directory to delete
+          schema:
+            type: string
+          example: /workspace/project/src/index.js
+      responses:
+        '200':
+          description: File deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteFileResponse'
+        '404':
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - ApiKeyAuth: []
+
+  /workspace/search:
+    get:
+      tags:
+        - Workspace
+      summary: Search files
+      description: Searches for files matching the provided query
+      operationId: searchFiles
+      parameters:
+        - name: query
+          in: query
+          required: true
+          description: Search query
+          schema:
+            type: string
+          example: "function hello"
+        - name: path
+          in: query
+          description: Search in specific directory
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+      security:
+        - ApiKeyAuth: []
+
+  /ai/chat:
+    post:
+      tags:
+        - AI
+      summary: AI chat completion
+      description: Generate AI-powered responses for chat conversations
+      operationId: chatCompletion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+      responses:
+        '200':
+          description: AI response generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - ApiKeyAuth: []
+
+  /ai/complete:
+    post:
+      tags:
+        - AI
+      summary: AI code completion
+      description: Generate AI-powered code completions using Fill-in-the-Middle (FIM) technique
+      operationId: codeCompletion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompletionRequest'
+      responses:
+        '200':
+          description: Code completion generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompletionResponse'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - ApiKeyAuth: []
+
+  /ai/stream:
+    post:
+      tags:
+        - AI
+      summary: AI streaming completion
+      description: Generate AI-powered responses with server-sent events for real-time streaming
+      operationId: streamCompletion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StreamRequest'
+      responses:
+        '200':
+          description: Streaming response initiated
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/StreamResponse'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - ApiKeyAuth: []
+
+  /git/status:
+    get:
+      tags:
+        - Git
+      summary: Get git status
+      description: Returns the current git status for a repository
+      operationId: getGitStatus
+      parameters:
+        - name: path
+          in: query
+          required: true
+          description: Repository path
+          schema:
+            type: string
+          example: /workspace/project
+      responses:
+        '200':
+          description: Git status retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitStatusResponse'
+        '404':
+          description: Repository not found or not a git repository
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - ApiKeyAuth: []
+
+  /git/branches:
+    get:
+      tags:
+        - Git
+      summary: Get git branches
+      description: Returns a list of branches in the repository
+      operationId: getGitBranches
+      parameters:
+        - name: path
+          in: query
+          required: true
+          description: Repository path
+          schema:
+            type: string
+          example: /workspace/project
+      responses:
+        '200':
+          description: Git branches retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitBranchesResponse'
+      security:
+        - ApiKeyAuth: []
+
+  /git/log:
+    get:
+      tags:
+        - Git
+      summary: Get git log
+      description: Returns the commit history for the repository
+      operationId: getGitLog
+      parameters:
+        - name: path
+          in: query
+          required: true
+          description: Repository path
+          schema:
+            type: string
+          example: /workspace/project
+        - name: limit
+          in: query
+          description: Maximum number of commits to return
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+      responses:
+        '200':
+          description: Git log retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitLogResponse'
+      security:
+        - ApiKeyAuth: []
+
+  /git/diff:
+    get:
+      tags:
+        - Git
+      summary: Get git diff
+      description: Returns the diff for the current working tree
+      operationId: getGitDiff
+      parameters:
+        - name: path
+          in: query
+          required: true
+          description: Repository path
+          schema:
+            type: string
+          example: /workspace/project
+      responses:
+        '200':
+          description: Git diff retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitDiffResponse'
+      security:
+        - ApiKeyAuth: []
+
+  /git/commit:
+    post:
+      tags:
+        - Git
+      summary: Create git commit
+      description: Commits changes to the repository
+      operationId: createGitCommit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GitCommitRequest'
+      responses:
+        '200':
+          description: Commit created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GitCommitResponse'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - ApiKeyAuth: []
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: API key for authentication
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+          example: healthy
+        timestamp:
+          type: string
+          format: date-time
+          example: 2025-11-20T06:31:48.000Z
+        uptime:
+          type: number
+          description: System uptime in seconds
+          example: 123.456
+        memory:
+          $ref: '#/components/schemas/MemoryInfo'
+        database:
+          $ref: '#/components/schemas/DatabaseInfo'
+        aiProvider:
+          $ref: '#/components/schemas/AIProviderInfo'
+
+    MemoryInfo:
+      type: object
+      properties:
+        used:
+          type: number
+          description: Used memory in bytes
+          example: 15728640
+        total:
+          type: number
+          description: Total available memory in bytes
+          example: 33554432
+        percentage:
+          type: number
+          description: Memory usage percentage
+          example: 46.9
+        rss:
+          type: number
+          description: Resident Set Size in bytes
+          example: 20971520
+        heapUsed:
+          type: number
+          description: Heap memory used in bytes
+          example: 8388608
+        heapTotal:
+          type: number
+          description: Total heap memory in bytes
+          example: 16777216
+
+    DatabaseInfo:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+          example: healthy
+        type:
+          type: string
+          example: file-system
+
+    AIProviderInfo:
+      type: object
+      properties:
+        available:
+          type: boolean
+          example: true
+        codestral:
+          type: boolean
+          example: true
+        huggingface:
+          type: boolean
+          example: true
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: "File not found"
+        code:
+          type: string
+          description: Error code
+          example: "FILE_NOT_FOUND"
+        details:
+          type: string
+          description: Additional error details
+          example: "The file '/workspace/project/src/index.js' does not exist"
+
+    FileInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          description: File or directory name
+          example: "index.js"
+        path:
+          type: string
+          description: Full file path
+          example: "/workspace/project/src/index.js"
+        type:
+          type: string
+          enum: [file, directory]
+          example: "file"
+        size:
+          type: number
+          description: File size in bytes
+          example: 1234
+        modified:
+          type: string
+          format: date-time
+          description: Last modification time
+          example: 2025-11-20T06:31:48.000Z
+        executable:
+          type: boolean
+          description: Whether the file is executable
+          example: false
+
+    FileListResponse:
+      type: object
+      properties:
+        path:
+          type: string
+          description: Requested directory path
+          example: "/workspace/project/src"
+        files:
+          type: array
+          items:
+            $ref: '#/components/schemas/FileInfo'
+
+    FileContentResponse:
+      type: object
+      properties:
+        path:
+          type: string
+          description: File path
+          example: "/workspace/project/src/index.js"
+        content:
+          type: string
+          description: File content
+          example: "console.log('Hello, World!');"
+        language:
+          type: string
+          description: Detected programming language
+          example: "javascript"
+
+    SaveFileRequest:
+      type: object
+      required:
+        - path
+        - content
+      properties:
+        path:
+          type: string
+          description: File path
+          example: "/workspace/project/src/index.js"
+        content:
+          type: string
+          description: File content
+          example: "console.log('Hello, World!');"
+
+    SaveFileResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        path:
+          type: string
+          description: File path
+          example: "/workspace/project/src/index.js"
+        created:
+          type: boolean
+          description: Whether file was created or updated
+          example: true
+
+    DeleteFileResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        path:
+          type: string
+          description: Deleted file path
+          example: "/workspace/project/src/index.js"
+
+    SearchResult:
+      type: object
+      properties:
+        path:
+          type: string
+          description: File path
+          example: "/workspace/project/src/index.js"
+        line:
+          type: number
+          description: Line number where match was found
+          example: 10
+        content:
+          type: string
+          description: Matching line content
+          example: "function hello() {"
+
+    SearchResponse:
+      type: object
+      properties:
+        query:
+          type: string
+          description: Search query
+          example: "function hello"
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchResult'
+
+    ChatMessage:
+      type: object
+      required:
+        - role
+        - content
+      properties:
+        role:
+          type: string
+          enum: [system, user, assistant]
+          description: Message role
+          example: "user"
+        content:
+          type: string
+          description: Message content
+          example: "How do I create a React component?"
+
+    ChatRequest:
+      type: object
+      required:
+        - provider
+        - messages
+      properties:
+        provider:
+          type: string
+          enum: [codestral, huggingface]
+          description: AI provider to use
+          example: "codestral"
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+          minItems: 1
+        model:
+          type: string
+          description: Specific model to use
+          example: "codestral-latest"
+        temperature:
+          type: number
+          minimum: 0
+          maximum: 2
+          default: 0.7
+          description: Response creativity (0-2)
+          example: 0.7
+        maxTokens:
+          type: integer
+          minimum: 1
+          maximum: 4096
+          default: 1000
+          description: Maximum tokens in response
+          example: 1000
+
+    ChatResponse:
+      type: object
+      properties:
+        content:
+          type: string
+          description: AI-generated response
+          example: "You can create a React component by..."
+        provider:
+          type: string
+          description: AI provider used
+          example: "codestral"
+        model:
+          type: string
+          description: Model used for generation
+          example: "codestral-latest"
+        tokens:
+          type: integer
+          description: Number of tokens used
+          example: 150
+
+    CompletionRequest:
+      type: object
+      required:
+        - provider
+        - prefix
+        - suffix
+      properties:
+        provider:
+          type: string
+          enum: [codestral, huggingface]
+          description: AI provider to use
+          example: "codestral"
+        prefix:
+          type: string
+          description: Code before the completion point
+          example: "function hello() {\n  console.log(\""
+        suffix:
+          type: string
+          description: Code after the completion point
+          example: "\");\n}"
+        language:
+          type: string
+          description: Programming language
+          example: "javascript"
+        maxTokens:
+          type: integer
+          minimum: 1
+          maximum: 512
+          default: 100
+          description: Maximum tokens in completion
+          example: 100
+
+    CompletionResponse:
+      type: object
+      properties:
+        content:
+          type: string
+          description: AI-generated code completion
+          example: "Hello, World!"
+        provider:
+          type: string
+          description: AI provider used
+          example: "codestral"
+        language:
+          type: string
+          description: Programming language
+          example: "javascript"
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Completion confidence score
+          example: 0.85
+
+    StreamRequest:
+      type: object
+      required:
+        - provider
+        - prefix
+        - suffix
+      properties:
+        provider:
+          type: string
+          enum: [codestral, huggingface]
+          description: AI provider to use
+          example: "codestral"
+        prefix:
+          type: string
+          description: Code before the completion point
+          example: "console.log(\""
+        suffix:
+          type: string
+          description: Code after the completion point
+          example: "\");"
+        language:
+          type: string
+          description: Programming language
+          example: "javascript"
+
+    StreamResponse:
+      type: object
+      properties:
+        stream:
+          type: boolean
+          example: true
+        eventType:
+          type: string
+          enum: [start, content, end, error]
+          description: Stream event type
+          example: "start"
+
+    GitStatus:
+      type: object
+      properties:
+        current:
+          type: string
+          description: Current branch name
+          example: "main"
+        staged:
+          type: array
+          items:
+            type: string
+          description: Staged files
+          example: ["src/index.js"]
+        unstaged:
+          type: array
+          items:
+            type: string
+          description: Modified files
+          example: ["src/utils.js"]
+        untracked:
+          type: array
+          items:
+            type: string
+          description: Untracked files
+          example: ["src/new-file.js"]
+
+    GitStatusResponse:
+      type: object
+      properties:
+        path:
+          type: string
+          description: Repository path
+          example: "/workspace/project"
+        status:
+          $ref: '#/components/schemas/GitStatus'
+
+    GitBranch:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Branch name
+          example: "main"
+        current:
+          type: boolean
+          description: Whether this is the current branch
+          example: true
+        remote:
+          type: string
+          description: Remote branch reference
+          example: "origin/main"
+
+    GitBranchesResponse:
+      type: object
+      properties:
+        path:
+          type: string
+          description: Repository path
+          example: "/workspace/project"
+        current:
+          type: string
+          description: Current branch name
+          example: "main"
+        branches:
+          type: array
+          items:
+            $ref: '#/components/schemas/GitBranch'
+
+    GitCommit:
+      type: object
+      properties:
+        hash:
+          type: string
+          description: Commit hash
+          example: "abc123def456"
+        message:
+          type: string
+          description: Commit message
+          example: "Add new feature"
+        author:
+          type: string
+          description: Author name
+          example: "John Doe"
+        email:
+          type: string
+          description: Author email
+          example: "john@example.com"
+        date:
+          type: string
+          format: date-time
+          description: Commit date
+          example: "2025-11-20T06:31:48.000Z"
+
+    GitLogResponse:
+      type: object
+      properties:
+        path:
+          type: string
+          description: Repository path
+          example: "/workspace/project"
+        commits:
+          type: array
+          items:
+            $ref: '#/components/schemas/GitCommit'
+
+    GitDiffResponse:
+      type: object
+      properties:
+        path:
+          type: string
+          description: Repository path
+          example: "/workspace/project"
+        diff:
+          type: string
+          description: Unified diff output
+          example: "diff --git a/src/index.js b/src/index.js\nindex 1234567..abcdef0 100644\n--- a/src/index.js\n+++ b/src/index.js\n@@ -1,3 +1,4 @@\n console.log('Hello');\n+console.log('World');\n "
+
+    GitCommitAuthor:
+      type: object
+      required:
+        - name
+        - email
+      properties:
+        name:
+          type: string
+          description: Author name
+          example: "John Doe"
+        email:
+          type: string
+          description: Author email
+          example: "john@example.com"
+
+    GitCommitRequest:
+      type: object
+      required:
+        - path
+        - message
+        - author
+      properties:
+        path:
+          type: string
+          description: Repository path
+          example: "/workspace/project"
+        message:
+          type: string
+          description: Commit message
+          example: "Add new feature"
+        author:
+          $ref: '#/components/schemas/GitCommitAuthor'
+
+    GitCommitResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        hash:
+          type: string
+          description: Created commit hash
+          example: "abc123def456"
+        message:
+          type: string
+          description: Commit message
+          example: "Add new feature"
