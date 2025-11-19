@@ -1,0 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Force dark mode on initial load – the hook will keep it */
+html, body, #root { height: 100%; }
+html { color-scheme: dark; }          /* makes scrollbars dark in browsers that support it */

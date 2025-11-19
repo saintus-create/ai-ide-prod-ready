@@ -1,0 +1,56 @@
+{
+  "name": "ai-ide",
+  "version": "1.0.0",
+  "description": "AI-powered IDE with pure black theme",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "dev": "npm run dev:backend",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "build": "npm run build:frontend && npm run build:backend",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm run build",
+    "start": "npm run start:backend",
+    "start:backend": "cd backend && npm start",
+    "vercel:dev": "cd frontend && npm run vercel:dev",
+    "vercel:deploy": "cd frontend && npm run vercel:deploy",
+    "deploy:check": "cd frontend && npm run deploy:check",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "lint": "npm run lint:frontend && npm run lint:backend",
+    "lint:frontend": "cd frontend && npm run lint",
+    "lint:backend": "cd backend && npm run lint",
+    "test": "npm run test:frontend && npm run test:backend",
+    "test:frontend": "cd frontend && npm run test:e2e",
+    "test:backend": "cd backend && npm test",
+    "clean": "rm -rf frontend/dist backend/dist node_modules",
+    "setup": "npm run install:all && echo 'Setup completed. Run npm run dev to start development server.'"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "keywords": [
+    "ai",
+    "ide",
+    "typescript",
+    "react",
+    "vercel",
+    "black-theme",
+    "codestral",
+    "hugging-face"
+  ],
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/ai-ide.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/ai-ide/issues"
+  },
+  "homepage": "https://github.com/your-username/ai-ide#readme"
+}
