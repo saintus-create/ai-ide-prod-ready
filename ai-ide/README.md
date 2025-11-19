@@ -15,6 +15,7 @@ A **full‑stack, production‑grade** AI‑powered IDE that runs locally or in 
 - **Keyboard Hotkeys** – Developer-friendly shortcuts (Ctrl+S for save, etc.).
 - **Enhanced DX** – Responsive layout with improved user experience features including toast notifications and theme persistence.
 - **Dockerised** – `docker compose up --build` launches everything.
+- **Vercel Ready** – Optimized for Vercel deployment with environment variable support.
 - **CI** – GitHub Actions runs lint, unit tests (Jest) and UI tests (Playwright).
 
 ## Theme & UX Features
@@ -49,15 +50,31 @@ The UI now features a **true black theme** (`bg-black`) providing:
 
 ## Quick start
 
+### Local Development
 ```bash
 # 1. copy the .env template & fill in your keys
 cp .env.example .env   # then edit .env
 
-# 2. build & run
+# 2. install dependencies
+npm run install:all
+
+# 3. run with Docker
 docker compose up --build -d
 
-# 3. open the UI
+# 4. open the UI
 open http://localhost:5173   # or visit manually
+```
+
+### Vercel Deployment
+See [`QUICK_DEPLOY.md`](QUICK_DEPLOY.md) for 1-click Vercel deployment or [`VERCEL_DEPLOYMENT.md`](VERCEL_DEPLOYMENT.md) for detailed setup.
+
+**TL;DR for Vercel:**
+```bash
+# Deploy backend (Railway example)
+railway init && railway up
+
+# Deploy frontend
+cd frontend && vercel --prod
 ```
 
 ### Theme & UX Features (No Setup Required)
@@ -89,6 +106,7 @@ open http://localhost:5173   # or visit manually
 * **Add new toast types** – Extend the toast system in `src/hooks/useToast.ts` and `src/components/ToastContainer.tsx`.
 * **Add keyboard shortcuts** – Register new hotkeys in `src/hooks/useHotkeys.ts`.
 * **UI components** – Follow the established black theme patterns using `bg-black` and `text-gray-100` for consistency.
+* **Deploy to Vercel** – Use the provided `vercel.json` config and follow `VERCEL_DEPLOYMENT.md` for detailed instructions.
 
 ## License
 

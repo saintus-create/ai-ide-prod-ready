@@ -23,4 +23,21 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'src'),
     },
   },
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          ui: ['@codemirror/view', '@codemirror/state', '@codemirror/lang-javascript', '@codemirror/theme-one-dark'],
+        },
+      },
+    },
+  },
+  define: {
+    // Ensure proper environment variable handling
+    __API_URL__: JSON.stringify(process.env.VITE_API_URL || 'http://localhost:4000'),
+    __WS_URL__: JSON.stringify(process.env.VITE_WS_URL || 'http://localhost:4000'),
+  },
 });

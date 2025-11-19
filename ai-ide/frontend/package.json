@@ -7,7 +7,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint src/**/*.tsx src/**/*.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "vercel:dev": "vercel dev",
+    "vercel:deploy": "vercel --prod",
+    "deploy:check": "npm run build && echo 'Build completed successfully'"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.12.0",
