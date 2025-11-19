@@ -7,7 +7,14 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint src/**/*.tsx src/**/*.ts",
+    "lint:fix": "eslint src/**/*.tsx src/**/*.ts --fix",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage",
+    "test:ci": "vitest --run --coverage",
     "test:e2e": "playwright test",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build",
     "vercel:dev": "vercel dev",
     "vercel:deploy": "vercel --prod",
     "deploy:check": "npm run build && echo 'Build completed successfully'"
@@ -29,13 +36,27 @@
     "tailwind-merge": "^2.4.0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.5.0",
+    "@testing-library/react": "^16.0.0",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/node": "^22.5.3",
     "@vitejs/plugin-react": "^4.3.1",
+    "@vitest/coverage-v8": "^2.0.5",
+    "@vitest/ui": "^2.0.5",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.6.0",
     "eslint-plugin-react": "^7.35.2",
+    "jsdom": "^25.0.0",
     "postcss": "^8.4.41",
     "playwright": "^1.46.1",
     "typescript": "^5.5.4",
-    "vite": "^5.4.1"
+    "vite": "^5.4.1",
+    "vitest": "^2.0.5",
+    "@storybook/addon-essentials": "^8.1.0",
+    "@storybook/addon-interactions": "^8.1.0",
+    "@storybook/addon-a11y": "^8.1.0",
+    "@storybook/addon-docs": "^8.1.0",
+    "@storybook/react-vite": "^8.1.0",
+    "storybook": "^8.1.0"
   }
 }
