@@ -8,6 +8,8 @@ import { fileURLToPath } from 'url';
 
 import aiRoutes from './routes/ai.routes';
 import gitRoutes from './routes/git.routes';
+import workspaceRoutes from './routes/workspace.routes';
+import healthRoutes from './routes/health.routes';
 import { attachWebSocket } from './routes/ws.routes';
 import { errorHandler } from './middlewares/errorHandler';
 import { rateLimiter } from './middlewares/rateLimiter';
@@ -33,8 +35,10 @@ app.use(rateLimiter);
 // ---------------------------------------------------------------
 // API routes
 // ---------------------------------------------------------------
+app.use('/api/health', healthRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/git', gitRoutes);
+app.use('/api/workspace', workspaceRoutes);
 
 // ---------------------------------------------------------------
 // Serve the built front‑end (when `npm run build` was executed)
