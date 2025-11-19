@@ -7,12 +7,14 @@ import Explorer from '@/components/Explorer';
 import Editor from '@/components/Editor';
 import GitPanel from '@/components/GitPanel';
 import Chat from '@/components/Chat';
+import Terminal from '@/components/Terminal';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { socket } from '@/lib/socket';
 
 export default function App() {
   const [connected, setConnected] = useState(false);
   const [showGitPanel, setShowGitPanel] = useState(true);
+  const [showTerminal, setShowTerminal] = useState(true);
   const [showSidebar, setShowSidebar] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const { error } = useToast();
@@ -96,6 +98,14 @@ export default function App() {
         }
       }
     },
+    {
+      key: '`',
+      ctrl: true,
+      description: 'Toggle terminal',
+      handler: () => {
+        setShowTerminal(!showTerminal);
+      }
+    },
   ]);
 
   const closeSidebar = () => setShowSidebar(false);
@@ -158,6 +168,12 @@ export default function App() {
             {showGitPanel && (
               <ErrorBoundary>
                 <GitPanel />
+              </ErrorBoundary>
+            )}
+            
+            {showTerminal && (
+              <ErrorBoundary>
+                <Terminal />
               </ErrorBoundary>
             )}
           </div>

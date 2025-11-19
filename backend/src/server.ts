@@ -11,6 +11,7 @@ import gitRoutes from './routes/git.routes';
 import workspaceRoutes from './routes/workspace.routes';
 import healthRoutes from './routes/health.routes';
 import { attachWebSocket } from './routes/ws.routes';
+import { TerminalService } from './services/terminal';
 import { errorHandler } from './middlewares/errorHandler';
 import { rateLimiter } from './middlewares/rateLimiter';
 
@@ -23,6 +24,16 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
 const httpServer = createServer(app);
+
+// ---------------------------------------------------------------
+// Initialize Terminal Service
+// ---------------------------------------------------------------
+const terminalService = new TerminalService();
+
+// Initialize terminal service
+terminalService.initialize().catch((error) => {
+  console.error('❌ Failed to initialize terminal service:', error);
+});
 
 // ---------------------------------------------------------------
 // Global middleware
@@ -58,7 +69,7 @@ app.use(errorHandler);
 // ---------------------------------------------------------------
 // WebSocket layer
 // ---------------------------------------------------------------
-attachWebSocket(httpServer);
+attachWebSocket(httpServer, terminalService);
 
 // ---------------------------------------------------------------
 // Start the server
