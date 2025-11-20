@@ -3,9 +3,11 @@ import { WorkspaceService } from '../workspace/service';
 import { AIProvider } from '../ai/models';
 import { getCompletion } from '../ai';
 import { TerminalService } from '../services/terminal';
+import { ExtensionService } from '../services/extension';
 import { TerminalWebSocketHandler } from './terminal';
+import { setupExtensionRoutes } from './extension.routes';
 
-export function attachWebSocket(server: any, terminalService?: TerminalService) {
+export function attachWebSocket(server: any, terminalService?: TerminalService, extensionService?: ExtensionService) {
   const io = new IOServer(server, {
     cors: {
       origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
@@ -20,6 +22,12 @@ export function attachWebSocket(server: any, terminalService?: TerminalService) 
   if (terminalService) {
     terminalHandler = new TerminalWebSocketHandler(server, terminalService);
     console.log('🖥️ Terminal WebSocket handler initialized');
+  }
+
+  // Initialize extension WebSocket routes if service is provided
+  if (extensionService) {
+    setupExtensionRoutes(io, extensionService);
+    console.log('🔧 Extension WebSocket routes initialized');
   }
 
   // Broadcast file changes to every client
@@ -103,7 +111,8 @@ export function attachWebSocket(server: any, terminalService?: TerminalService) 
     terminalHandler: terminalHandler,
     getStats: () => ({
       socketConnections: io.engine.clientsCount,
-      terminalHandler: terminalHandler?.getStats()
+      terminalHandler: terminalHandler?.getStats(),
+      extensionHandler: extensionService?.getStatistics()
     })
   };
 }

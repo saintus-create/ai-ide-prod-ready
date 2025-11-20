@@ -10,8 +10,10 @@ import aiRoutes from './routes/ai.routes';
 import gitRoutes from './routes/git.routes';
 import workspaceRoutes from './routes/workspace.routes';
 import healthRoutes from './routes/health.routes';
+import extensionRoutes from './routes/extension.routes';
 import { attachWebSocket } from './routes/ws.routes';
 import { TerminalService } from './services/terminal';
+import { ExtensionService } from './services/extension';
 import { errorHandler } from './middlewares/errorHandler';
 import { rateLimiter } from './middlewares/rateLimiter';
 
@@ -26,13 +28,20 @@ const app = express();
 const httpServer = createServer(app);
 
 // ---------------------------------------------------------------
-// Initialize Terminal Service
+// Initialize Services
 // ---------------------------------------------------------------
 const terminalService = new TerminalService();
+const workspacePath = process.env.WORKSPACE_PATH || path.join(__dirname, '../../workspace');
+const extensionService = new ExtensionService(workspacePath);
 
 // Initialize terminal service
 terminalService.initialize().catch((error) => {
   console.error('❌ Failed to initialize terminal service:', error);
+});
+
+// Initialize extension service (load any saved extensions)
+extensionService.initialize?.().catch((error) => {
+  console.error('❌ Failed to initialize extension service:', error);
 });
 
 // ---------------------------------------------------------------
@@ -50,6 +59,7 @@ app.use('/api/health', healthRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/git', gitRoutes);
 app.use('/api/workspace', workspaceRoutes);
+app.use('/api/extensions', extensionRoutes);
 
 // ---------------------------------------------------------------
 // Serve the built front‑end (when `npm run build` was executed)
@@ -69,7 +79,7 @@ app.use(errorHandler);
 // ---------------------------------------------------------------
 // WebSocket layer
 // ---------------------------------------------------------------
-attachWebSocket(httpServer, terminalService);
+attachWebSocket(httpServer, terminalService, extensionService);
 
 // ---------------------------------------------------------------
 // Start the server
