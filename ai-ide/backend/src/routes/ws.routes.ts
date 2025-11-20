@@ -2,8 +2,10 @@ import { Server as IOServer } from 'socket.io';
 import { WorkspaceService } from '../workspace/service';
 import { AIProvider } from '../ai/models';
 import { getCompletion } from '../ai';
+import { TerminalService } from '../services/terminal';
+import { TerminalWebSocketHandler } from './terminal';
 
-export function attachWebSocket(server: any) {
+export function attachWebSocket(server: any, terminalService?: TerminalService) {
   const io = new IOServer(server, {
     cors: {
       origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
@@ -12,6 +14,13 @@ export function attachWebSocket(server: any) {
   });
 
   const workspace = new WorkspaceService();
+  
+  // Initialize terminal WebSocket handler if service is provided
+  let terminalHandler: TerminalWebSocketHandler | null = null;
+  if (terminalService) {
+    terminalHandler = new TerminalWebSocketHandler(server, terminalService);
+    console.log('🖥️ Terminal WebSocket handler initialized');
+  }
 
   // Broadcast file changes to every client
   workspace.on('file:changed', (rel) => io.emit('workspace:fileChanged', rel));
@@ -88,5 +97,13 @@ export function attachWebSocket(server: any) {
     socket.on('disconnect', () => console.log('🔴 client disconnected', socket.id));
   });
 
-  return io;
+  // Return handlers info for monitoring
+  return {
+    io,
+    terminalHandler: terminalHandler,
+    getStats: () => ({
+      socketConnections: io.engine.clientsCount,
+      terminalHandler: terminalHandler?.getStats()
+    })
+  };
 }
